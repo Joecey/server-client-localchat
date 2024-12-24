@@ -12,7 +12,7 @@ public class SocketServer {
 
     /**
      * Start up a server chat client using the specified port passed by user
-     * @param portNum
+     * @param portNum port number for specified ip address
      */
     public void start(int portNum){
         System.out.printf("%s Starting new chat server on localhost at port %s \n", LogLevels.INFO.getMessage(), portNum);
