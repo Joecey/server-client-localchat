@@ -2,14 +2,59 @@ package localchat.client;
 
 import localchat.utils.LogLevels;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
 import java.util.Scanner;
 
 public class SocketClient {
-    private static String ip  = "127.0.0.1";
+    private Socket clientSocket;
+    private PrintWriter out;    // use for sending out messages to the server client via socket connection
+    private BufferedReader in;  // use for receiving messages and chats echoed from the server client
+    private static String ip = "127.0.0.1";
 
-    public void connectToServer(String ip, int port, String clientName){
-        System.out.println(LogLevels.INFO.getMessage() + "Attempting to connect to server...");
-        System.out.printf("%s, %2d, %s \n", ip, port, clientName);
+    public void connectToServer(String ip, int port) {
+        try {
+            System.out.println(LogLevels.INFO.getMessage() +
+                    String.format("Attempting to connect to server %s:%2d", ip, port));
+
+            // Create new socket connection, assign out stream and assign in stream
+            clientSocket = new Socket(ip, port);
+            out = new PrintWriter(clientSocket.getOutputStream(), true);
+            in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+
+        } catch (Exception err) {
+            throw new Error(err.getMessage());
+        }
+    }
+
+    /**
+     * Send message to the serverClient that is currently connected via the socketConnection. If there is an issue,
+     * return a string with the corresponding error. Here, we will just send the full string to the server, and we let
+     * the server handle what to do based on the string sent -> let's us send commands aswell as messages!
+     *
+     * @param msg        - message to send to server
+     * @param clientName - name of socketClient given on startup
+     * @return Returns message received or error encountered
+     */
+    public String sendMessage(String msg, String clientName) {
+        System.out.printf("DEBUGGINGS %s %s \n", msg, clientName);
+        try {
+            out.println(msg);
+            String resp = in.readLine();
+            return resp;
+
+        } catch (Exception err) {
+            return LogLevels.WARN.getMessage() + "Unable to return response...: " + err.getMessage();
+        }
+    }
+
+    public void stopConnection() throws IOException {
+        in.close();
+        out.close();
+        clientSocket.close();
     }
 
     public static void main(String[] args) {
@@ -28,8 +73,22 @@ public class SocketClient {
         String clientName = clientInputs.nextLine().replaceAll("\\s+", "");
 
         // TODO: add name system which will be passed to Server
-        SocketClient chatClient = new SocketClient();
-        chatClient.connectToServer(ip, newPort, clientName);
+        try {
+            // Connect to the server here by creating a new instance of the chatClient
+            SocketClient chatClient = new SocketClient();
+            chatClient.connectToServer(ip, newPort);
+
+            // TODO: examples need to remove
+            String response;
+            response = chatClient.sendMessage("Hi from client!", String.valueOf(newPort));
+            System.out.println(response);
+            response = chatClient.sendMessage(".q", String.valueOf(newPort));
+            System.out.println(response);
+
+
+        } catch (Exception err) {
+            System.out.printf("%sThere was an issue connecting to the server: %s \n", LogLevels.ERROR.getMessage(), err.getMessage());
+        }
 
     }
 }
