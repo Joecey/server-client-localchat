@@ -44,7 +44,7 @@ public class SocketServer {
                         } else {
                             String formattedMessage = String.format("[SERVER-ADMIN]: %s (%s)",
                                     msgToSend,
-                                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("H:m d MMMM y")));
+                                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm d MMMM y")));
                             addMessageToQueue(formattedMessage);
                             System.out.println(formattedMessage);
 
