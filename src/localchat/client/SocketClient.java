@@ -69,7 +69,7 @@ public class SocketClient {
         clientInputs.nextLine();
 
         // TODO: ignore special characters if inputted
-        System.out.println("\n What name would you like to give your client (No special characters are allowed)?");
+        System.out.println("\nWhat name would you like to give your client (No special characters are allowed)?");
         String clientName = clientInputs.nextLine().replaceAll("\\s+", "");
 
         try {
