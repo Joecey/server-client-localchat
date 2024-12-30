@@ -9,6 +9,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class SocketServer {
     private ServerSocket serverSocket;
+    private static String mostRecentServerMessage = "";
     private static final int MAX_MESSAGES = 20;    // Max messages that will be stored in log
 
     // Used to store our messages. Queue works on FIFO so we can delete older messages as needed fairly quickly
@@ -58,6 +59,7 @@ public class SocketServer {
     public void sendMessage(String msg) {
     }
 
+
     /**
      * Send messages to the message queue checking if MAX_MESSAGES has been reached
      *
@@ -92,7 +94,11 @@ public class SocketServer {
                 in = new BufferedReader(
                         new InputStreamReader(clientSocket.getInputStream()));
 
-                // TODO: basic example currently - get message from client and echo it
+                // On startup, we want to send every message in the Queue to the newly connected Client
+                for (Object oldMessage: messageQueue.toArray()){
+                    out.println(oldMessage);
+                }
+
                 String inputLine;
                 String messageToBroadcast = "";
 
@@ -104,6 +110,9 @@ public class SocketServer {
                             if (".q".equals(inputLine)) {
                                 break;
                             }
+
+                            // TODO: add the time to the end 
+                            System.out.println(inputLine);
                             addMessageToQueue(inputLine);
                         }
                     }
@@ -111,9 +120,9 @@ public class SocketServer {
                     // only send if tail of queue is different to message to Broadcast
 
                     if (!messageQueue.isEmpty() && !messageToBroadcast.equals(messageQueue.toArray()[messageQueue.size() - 1])) {
-                        System.out.println("sending message");
                         messageToBroadcast = (String) messageQueue.toArray()[messageQueue.size() - 1];  // downcast to String
                         out.println(messageToBroadcast);
+
                     }
                 }
 

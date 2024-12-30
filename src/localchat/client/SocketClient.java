@@ -113,6 +113,7 @@ public class SocketClient {
             });
             incomingMsgThread.start();
 
+            // everything here is used to handle incoming messages from the terminal
             String msgToSend;
             boolean clientActive = true;
             Scanner clientCLIInputs = new Scanner(System.in);
