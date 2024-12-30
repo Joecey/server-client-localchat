@@ -3,16 +3,19 @@ package localchat.server;
 import localchat.utils.LogLevels;
 
 import java.net.*;  // This will be the main package that we need for this project
-import java.io.*;   // Reading and writing strings from and to our clientsockets
+import java.io.*;   // Reading and writing strings from and to our client sockets
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Scanner;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.regex.Pattern;
 
 
 public class SocketServer {
     private ServerSocket serverSocket;
-    private static String mostRecentServerMessage = "";
-    private static final int MAX_MESSAGES = 20;    // Max messages that will be stored in log
+    private static int MAX_MESSAGES = 20;    // Max messages that will be stored in log
 
-    // Used to store our messages. Queue works on FIFO so we can delete older messages as needed fairly quickly
+    // Used to store our messages. Queue works on FIFO, so we can delete older messages as needed fairly quickly
     // Also, LinkedBlockingQueue allows for concurrency in our thread based solution
     private static LinkedBlockingQueue<String> messageQueue = new LinkedBlockingQueue<String>();
 
@@ -26,39 +29,57 @@ public class SocketServer {
             System.out.printf("%s Starting new chat server on localhost at port %s \n", LogLevels.INFO.getMessage(), portNum);
             serverSocket = new ServerSocket(portNum);
 
+            System.out.printf("%s Currently running chat room at port: %s \n", LogLevels.INFO.getMessage(), portNum);
+
+            // manage server inputs from terminal using another BufferedReader isolated in its own thread
+            Thread serverInputs = new Thread(() -> {
+                try {
+                    Scanner serverCLIInputs = new Scanner(System.in);
+                    boolean serverActive = true;
+                    while (serverActive) {
+                        String msgToSend = serverCLIInputs.nextLine();
+                        if (".q".equals(msgToSend)) {
+                            serverActive = false;
+
+                        } else {
+                            String formattedMessage = String.format("[SERVER-ADMIN]: %s (%s)",
+                                    msgToSend,
+                                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("H:m d MMMM y")));
+                            addMessageToQueue(formattedMessage);
+                            System.out.println(formattedMessage);
+
+                        }
+
+                    }
+                    serverSocket.close();
+                    Thread.currentThread().join();
+
+
+                } catch (Exception ThreadError) {
+                    System.out.println(LogLevels.ERROR.getMessage() + "An issue has occurred in serverInput thread.");
+                }
+            });
+
+            serverInputs.start();
+
             /* if serverClient connection is successful, we want to have a while loop that constantly looks
             for socketClients. Note that .start() does not run until .accept() is successfully run - thus, this while
             loop is held until needed
             */
 
-            // TODO: add a separate thread to include command line functionality
-
-            System.out.printf("%s Currently running chat room at port: %s \n", LogLevels.INFO.getMessage(), portNum);
             while (true) {
                 new SocketClientHandler(serverSocket.accept()).start();
                 System.out.println(LogLevels.INFO.getMessage() + "New client has connected!");
             }
 
+        } catch (IOException endError) {
+            System.out.println("Closing server. Press CTRL+C to exit...");
 
         } catch (Exception err) {
             System.out.printf("There was an issue with the serverClient...%s\n", err.getMessage());
         }
 
     }
-
-    /**
-     * Used to stop the chat server
-     *
-     * @throws IOException
-     */
-    public void stop() throws IOException {
-        serverSocket.close();
-    }
-
-    // TODO: add ability for server to send messages and close itself
-    public void sendMessage(String msg) {
-    }
-
 
     /**
      * Send messages to the message queue checking if MAX_MESSAGES has been reached
@@ -78,6 +99,7 @@ public class SocketServer {
         private Socket clientSocket;
         private PrintWriter out;
         private BufferedReader in;
+        private Pattern userNamePattern = Pattern.compile("^\\[.*?\\]:\\s*");
 
         // Constructor for SocketClientHandler thread
         public SocketClientHandler(Socket socket) {
@@ -95,7 +117,7 @@ public class SocketServer {
                         new InputStreamReader(clientSocket.getInputStream()));
 
                 // On startup, we want to send every message in the Queue to the newly connected Client
-                for (Object oldMessage: messageQueue.toArray()){
+                for (Object oldMessage : messageQueue.toArray()) {
                     out.println(oldMessage);
                 }
 
@@ -106,14 +128,12 @@ public class SocketServer {
                     // Handle incoming inputs from the client
                     if (in.ready()) {
                         if ((inputLine = in.readLine()) != null) {
-                            // TODO: filter out client names as needed
-                            if (".q".equals(inputLine)) {
+                            if (".q".equals(userNamePattern.matcher(inputLine).replaceFirst(""))) {
                                 break;
                             }
-
-                            // TODO: add the time to the end 
-                            System.out.println(inputLine);
-                            addMessageToQueue(inputLine);
+                            String messageWithTime = inputLine + String.format(" (%s)", LocalDateTime.now().format(DateTimeFormatter.ofPattern("H:m d MMMM y")));
+                            System.out.println(messageWithTime);
+                            addMessageToQueue(messageWithTime);
                         }
                     }
                     // Handle reading of new messages from client here
@@ -138,9 +158,7 @@ public class SocketServer {
             } catch (Exception err) {
                 System.out.println(LogLevels.ERROR.getMessage() + "An error has occurred with a socketClient " + err.getMessage());
             }
-
         }
-
     }
 
     public static void main(String[] args) {
@@ -150,6 +168,8 @@ public class SocketServer {
             System.out.println(LogLevels.ERROR.getMessage() + "Port number not recognised. Please try again");
         } else {
             SocketServer chatServer = new SocketServer();
+            if (args.length == 2)
+                MAX_MESSAGES = Integer.parseInt(args[1]);   // User can change the max message history if needed
             chatServer.start(Integer.parseInt(args[0]));
         }
     }

@@ -16,20 +16,18 @@ public class SocketClient {
     private static String ip = "127.0.0.1";
 
 
-    public void connectToServer(String ip, int port) {
-        try {
-            System.out.println(LogLevels.INFO.getMessage() +
-                    String.format("Attempting to connect to server %s:%2d", ip, port));
+    public void connectToServer(String ip, int port) throws Exception {
+        System.out.println(LogLevels.INFO.getMessage() +
+                String.format("Attempting to connect to server %s:%2d", ip, port));
 
-            // Create new socket connection, assign out stream and assign in stream
-            clientSocket = new Socket(ip, port);
-            out = new PrintWriter(clientSocket.getOutputStream(), true);
-            in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            System.out.println(LogLevels.INFO.getMessage() + "Connected!");
+        // Create new socket connection, assign out stream and assign in stream
+        clientSocket = new Socket(ip, port);
+        out = new PrintWriter(clientSocket.getOutputStream(), true);
+        in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+        System.out.println(LogLevels.INFO.getMessage() + "Connected!");
+        System.out.println("\n============ CHAT ROOM ===========");
 
-        } catch (Exception err) {
-            throw new Error(err.getMessage());
-        }
+
     }
 
     /**
@@ -43,9 +41,8 @@ public class SocketClient {
      */
     public void sendMessage(String msg, String clientName) {
         try {
-            // TODO: add clientName in message payload
-
-            out.println(msg);
+            String formattedMsg = String.format("[%s]: %s", clientName, msg);
+            out.println(formattedMsg);
 
 
         } catch (Exception err) {
@@ -72,7 +69,7 @@ public class SocketClient {
         clientInputs.nextLine();
 
         // TODO: ignore special characters if inputted
-        System.out.println("What name would you like to give your client (No special characters are allowed)?");
+        System.out.println("\n What name would you like to give your client (No special characters are allowed)?");
         String clientName = clientInputs.nextLine().replaceAll("\\s+", "");
 
         try {
@@ -120,7 +117,7 @@ public class SocketClient {
             while (clientActive) {
                 msgToSend = clientCLIInputs.nextLine();
                 chatClient.sendMessage(msgToSend, clientName);
-                if (".q".equals(msgToSend)){
+                if (".q".equals(msgToSend)) {
                     clientActive = false;
                 }
             }
@@ -133,7 +130,8 @@ public class SocketClient {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (Exception err) {
-            System.out.printf("%sThere was an issue connecting to the server: %s \n", LogLevels.ERROR.getMessage(), err.getMessage());
+            System.out.printf("%sThere was an issue connecting to the server. Is the server running?: %s \n",
+                    LogLevels.ERROR.getMessage(), err.getMessage());
         }
 
     }
