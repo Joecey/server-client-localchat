@@ -12,8 +12,9 @@ import java.util.Scanner;
 public class SocketClient {
     private Socket clientSocket;
     private PrintWriter out;    // use for sending out messages to the server client via socket connection
-    private BufferedReader in;  // use for receiving messages and chats echoed from the server client
+    private static BufferedReader in;  // use for receiving messages and chats echoed from the server client
     private static String ip = "127.0.0.1";
+
 
     public void connectToServer(String ip, int port) {
         try {
@@ -24,6 +25,7 @@ public class SocketClient {
             clientSocket = new Socket(ip, port);
             out = new PrintWriter(clientSocket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            System.out.println(LogLevels.INFO.getMessage() + "Connected!");
 
         } catch (Exception err) {
             throw new Error(err.getMessage());
@@ -39,15 +41,15 @@ public class SocketClient {
      * @param clientName - name of socketClient given on startup
      * @return Returns message received or error encountered
      */
-    public String sendMessage(String msg, String clientName) {
-        System.out.printf("DEBUGGINGS %s %s \n", msg, clientName);
+    public void sendMessage(String msg, String clientName) {
         try {
+            // TODO: add clientName in message payload
+
             out.println(msg);
-            String resp = in.readLine();
-            return resp;
+
 
         } catch (Exception err) {
-            return LogLevels.WARN.getMessage() + "Unable to return response...: " + err.getMessage();
+            System.out.println(LogLevels.WARN.getMessage() + "Unable to send message...: " + err.getMessage());
         }
     }
 
@@ -69,23 +71,66 @@ public class SocketClient {
         // need this to consume any left over new line from nextInt
         clientInputs.nextLine();
 
-        System.out.println("What name would you like to give your client?");
+        // TODO: ignore special characters if inputted
+        System.out.println("What name would you like to give your client (No special characters are allowed)?");
         String clientName = clientInputs.nextLine().replaceAll("\\s+", "");
 
-        // TODO: add name system which will be passed to Server
         try {
             // Connect to the server here by creating a new instance of the chatClient
             SocketClient chatClient = new SocketClient();
             chatClient.connectToServer(ip, newPort);
 
-            // TODO: examples need to remove
-            String response;
-            response = chatClient.sendMessage("Hi from client!", String.valueOf(newPort));
-            System.out.println(response);
-            response = chatClient.sendMessage(".q", String.valueOf(newPort));
-            System.out.println(response);
+            // If connection is successful...
+            // start a new thread which will be used to read incoming messages from in BufferedReader
+            // perform a while loop that takes messages from terminal
+
+            Thread incomingMsgThread = new Thread(() -> {
+                String incomingMessage; // incoming messages from server
+                String msgToOutput = "";
+                boolean outputMsgFlag = false;
+                while (true) {
+                    try {
+                        if (in.ready()) {
+                            if ((incomingMessage = in.readLine()) != null) {
+                                if (!msgToOutput.equals(incomingMessage)) {
+                                    msgToOutput = incomingMessage;
+                                    outputMsgFlag = true;
+                                }
+                            }
+                        }
+
+                        if (outputMsgFlag) {
+                            System.out.println(msgToOutput);
+                            outputMsgFlag = false;
+                        }
+
+                    } catch (IOException e) {
+                        System.out.println("Thread shutting down...");
+                        break;
+
+                    }
+                }
+            });
+            incomingMsgThread.start();
+
+            String msgToSend;
+            boolean clientActive = true;
+            Scanner clientCLIInputs = new Scanner(System.in);
+            while (clientActive) {
+                msgToSend = clientCLIInputs.nextLine();
+                chatClient.sendMessage(msgToSend, clientName);
+                if (".q".equals(msgToSend)){
+                    clientActive = false;
+                }
+            }
+
+            // once we get to here, stop the connection
+            incomingMsgThread.join();   // stop thread when connection is done
+            chatClient.stopConnection();
 
 
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         } catch (Exception err) {
             System.out.printf("%sThere was an issue connecting to the server: %s \n", LogLevels.ERROR.getMessage(), err.getMessage());
         }

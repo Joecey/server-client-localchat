@@ -4,17 +4,16 @@ import localchat.utils.LogLevels;
 
 import java.net.*;  // This will be the main package that we need for this project
 import java.io.*;   // Reading and writing strings from and to our clientsockets
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 
 public class SocketServer {
     private ServerSocket serverSocket;
-    private final int MAX_MESSAGES = 20;    // Max messages that will be stored in log
+    private static final int MAX_MESSAGES = 20;    // Max messages that will be stored in log
 
     // Used to store our messages. Queue works on FIFO so we can delete older messages as needed fairly quickly
-    // Also, Queue allows for concurrency in our thread based solution
-    private static Queue<String> messageQueue = new LinkedList<String>();
+    // Also, LinkedBlockingQueue allows for concurrency in our thread based solution
+    private static LinkedBlockingQueue<String> messageQueue = new LinkedBlockingQueue<String>();
 
     /**
      * Start up a server chat client using the specified port passed by user
@@ -56,7 +55,18 @@ public class SocketServer {
     }
 
     // TODO: add ability for server to send messages and close itself
-    public void SendMessage(String msg) {
+    public void sendMessage(String msg) {
+    }
+
+    /**
+     * Send messages to the message queue checking if MAX_MESSAGES has been reached
+     *
+     * @param msg
+     */
+    public synchronized static void addMessageToQueue(String msg) {
+        // remove older messages if MAX_MESSAGES is exceeded
+        if (messageQueue.size() >= MAX_MESSAGES) messageQueue.poll();
+        messageQueue.add(msg);
     }
 
     /**
@@ -84,16 +94,31 @@ public class SocketServer {
 
                 // TODO: basic example currently - get message from client and echo it
                 String inputLine;
-                while ((inputLine = in.readLine()) != null) {
+                String messageToBroadcast = "";
 
-                    if (".q".equals(inputLine)) {
-                        break;
+                while (true) {
+                    // Handle incoming inputs from the client
+                    if (in.ready()) {
+                        if ((inputLine = in.readLine()) != null) {
+                            // TODO: filter out client names as needed
+                            if (".q".equals(inputLine)) {
+                                break;
+                            }
+                            addMessageToQueue(inputLine);
+                        }
                     }
-                    out.println(inputLine);
+                    // Handle reading of new messages from client here
+                    // only send if tail of queue is different to message to Broadcast
+
+                    if (!messageQueue.isEmpty() && !messageToBroadcast.equals(messageQueue.toArray()[messageQueue.size() - 1])) {
+                        System.out.println("sending message");
+                        messageToBroadcast = (String) messageQueue.toArray()[messageQueue.size() - 1];  // downcast to String
+                        out.println(messageToBroadcast);
+                    }
                 }
 
                 System.out.println(LogLevels.INFO.getMessage() + "Disconnecting client...Goodbye!");
-                out.println("Thanks for chatting. Goodbye!");
+                out.println("Thanks for chatting. Goodbye! You are free to press Ctrl+C to end session...");
                 in.close();
                 out.close();
                 clientSocket.close();
