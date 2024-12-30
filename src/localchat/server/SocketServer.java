@@ -44,7 +44,7 @@ public class SocketServer {
                         } else {
                             String formattedMessage = String.format("[SERVER-ADMIN]: %s (%s)",
                                     msgToSend,
-                                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm d MMMM y")));
+                                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm dd MMMM y")));
                             addMessageToQueue(formattedMessage);
                             System.out.println(formattedMessage);
 
@@ -131,7 +131,7 @@ public class SocketServer {
                             if (".q".equals(userNamePattern.matcher(inputLine).replaceFirst(""))) {
                                 break;
                             }
-                            String messageWithTime = inputLine + String.format(" (%s)", LocalDateTime.now().format(DateTimeFormatter.ofPattern("H:m d MMMM y")));
+                            String messageWithTime = inputLine + String.format(" (%s)", LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm d MMMM y")));
                             System.out.println(messageWithTime);
                             addMessageToQueue(messageWithTime);
                         }
