@@ -68,7 +68,6 @@ public class SocketClient {
         // need this to consume any left over new line from nextInt
         clientInputs.nextLine();
 
-        // TODO: ignore special characters if inputted
         System.out.println("\nWhat name would you like to give your client (No special characters are allowed)?");
         String clientName = clientInputs.nextLine().replaceAll("\\s+", "");
 
